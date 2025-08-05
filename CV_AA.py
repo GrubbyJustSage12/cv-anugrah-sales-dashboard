@@ -30,17 +30,28 @@ if uploaded_file:
 
     # Clean and convert
     df["FORM_DATE"] = pd.to_datetime(df["FORM_DATE"])
-    df["Month"] = df["FORM_DATE"].dt.to_period("M").astype(str)
+    df["Year"] = df["FORM_DATE"].dt.year
+    df["Month_Num"] = df["FORM_DATE"].dt.month
+    df["Month_Name"] = df["Month_Num"].apply(lambda x: calendar.month_name[x])
+    df["Month_Year"] = df["FORM_DATE"].dt.to_period("M").astype(str)
     df["SALES_AMOUNT"] = df["SALES_AMOUNT"].astype(str).str.replace(",", ".").astype(float)
 
-    # 📅 Filter by Month
-    available_months = sorted(df["Month"].unique())
-    selected_month = st.selectbox("Pilih Bulan", available_months)
-    df = df[df["Month"] == selected_month]
+    # Dropdown for Year
+    selected_year = st.selectbox("Pilih Tahun", sorted(df["Year"].unique(), reverse=True))
+
+    # Filter by selected year
+    df = df[df["Year"] == selected_year]
+
+    # Dropdown for Month Name
+    month_options = df["Month_Name"].unique()
+    selected_month = st.selectbox("Pilih Bulan", sorted(month_options, key=lambda x: list(calendar.month_name).index(x)))
+
+    # Filter by selected month
+    df = df[df["Month_Name"] == selected_month]
 
     # 1️⃣ Penjualan Tiap Customer Tiap Bulan
-    st.subheader("1. Penjualan Tiap Customer (Bulan: " + selected_month + ")")
-    monthly = df.groupby(["CUSTOMER_NAME", "Month"])["SALES_AMOUNT"].sum().reset_index()
+    st.subheader(f"1. Penjualan Tiap Customer - {selected_month} {selected_year}")
+    monthly = df.groupby(["CUSTOMER_NAME", "Month_Year"])["SALES_AMOUNT"].sum().reset_index()
     st.dataframe(monthly)
 
     # 2️⃣ Filter Berdasarkan Kota Customer
@@ -60,7 +71,7 @@ if uploaded_file:
     st.metric("Total Penjualan", f"{sp_data['SALES_AMOUNT'].sum():,.2f}")
 
     chart = px.bar(sp_data, x="CUSTOMER_NAME", y="SALES_AMOUNT",
-                   title=f"Penjualan per Customer oleh {salesperson} (Bulan: {selected_month})",
+                   title=f"Penjualan per Customer oleh {salesperson} - {selected_month} {selected_year}",
                    labels={"SALES_AMOUNT": "Total Penjualan"})
     st.plotly_chart(chart)
 
