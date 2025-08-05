@@ -33,15 +33,23 @@ if uploaded_file:
     df["Month"] = df["FORM_DATE"].dt.to_period("M").astype(str)
     df["SALES_AMOUNT"] = df["SALES_AMOUNT"].astype(str).str.replace(",", ".").astype(float)
 
-    st.subheader("1. Penjualan Tiap Customer Tiap Bulan")
+    # 📅 Filter by Month
+    available_months = sorted(df["Month"].unique())
+    selected_month = st.selectbox("Pilih Bulan", available_months)
+    df = df[df["Month"] == selected_month]
+
+    # 1️⃣ Penjualan Tiap Customer Tiap Bulan
+    st.subheader("1. Penjualan Tiap Customer (Bulan: " + selected_month + ")")
     monthly = df.groupby(["CUSTOMER_NAME", "Month"])["SALES_AMOUNT"].sum().reset_index()
     st.dataframe(monthly)
 
+    # 2️⃣ Filter Berdasarkan Kota Customer
     st.subheader("2. Filter Berdasarkan Kota Customer")
     city = st.selectbox("Pilih Kota", df["CUSTOMER_CITY"].unique())
     filtered_by_city = df[df["CUSTOMER_CITY"] == city]
     st.dataframe(filtered_by_city)
 
+    # 3️⃣ Filter Berdasarkan Salesperson
     st.subheader("3. Filter Berdasarkan Salesperson")
     salesperson = st.selectbox("Pilih Salesperson", df["SALESMAN_NAME"].unique())
     sp_data = df[df["SALESMAN_NAME"] == salesperson]
@@ -52,7 +60,7 @@ if uploaded_file:
     st.metric("Total Penjualan", f"{sp_data['SALES_AMOUNT'].sum():,.2f}")
 
     chart = px.bar(sp_data, x="CUSTOMER_NAME", y="SALES_AMOUNT",
-                   title=f"Penjualan per Customer oleh {salesperson}",
+                   title=f"Penjualan per Customer oleh {salesperson} (Bulan: {selected_month})",
                    labels={"SALES_AMOUNT": "Total Penjualan"})
     st.plotly_chart(chart)
 
