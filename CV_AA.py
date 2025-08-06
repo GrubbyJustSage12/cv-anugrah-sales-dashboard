@@ -31,24 +31,33 @@ if uploaded_file:
     # Load CSV with proper separator and encoding
     df = pd.read_csv(uploaded_file, sep=";", encoding="utf-8")
 
-    # Clean and convert
+    # Parse FORM_DATE and add date columns
     df["FORM_DATE"] = pd.to_datetime(df["FORM_DATE"])
     df["Year"] = df["FORM_DATE"].dt.year
     df["Month_Name"] = df["FORM_DATE"].dt.month_name()
     df["Month_Year"] = df["FORM_DATE"].dt.to_period("M").astype(str)
-    df["SALES_AMOUNT"] = df["SALES_AMOUNT"].astype(str).str.replace(",", ".").astype(float)
 
-    # Filter by year and month
+    # ✅ Clean SALES_AMOUNT (Indonesian format: thousands separator is ".", decimal separator is ",")
+    df["SALES_AMOUNT"] = (
+        df["SALES_AMOUNT"]
+        .astype(str)
+        .str.replace(".", "", regex=False)       # Remove thousand separator
+        .str.replace(",", ".", regex=False)      # Convert decimal separator
+        .astype(float)                           # Convert to float
+    )
+
+    # Sidebar filters
     st.sidebar.header("Filter Data")
     selected_year = st.sidebar.selectbox("Pilih Tahun", sorted(df["Year"].unique()))
     selected_month = st.sidebar.selectbox(
-        "Pilih Bulan", 
+        "Pilih Bulan",
         sorted(
-            df[df["Year"] == selected_year]["Month_Name"].unique(), 
+            df[df["Year"] == selected_year]["Month_Name"].unique(),
             key=lambda x: list(calendar.month_name).index(x)
         )
     )
 
+    # Filter dataset by year and month
     filtered_df = df[(df["Year"] == selected_year) & (df["Month_Name"] == selected_month)]
 
     # 1. Penjualan Tiap Customer Tiap Bulan
@@ -77,9 +86,13 @@ if uploaded_file:
     st.write("Daftar Customer yang Dipegang:")
     st.dataframe(sp_data[["CUSTOMER_NAME", "CUSTOMER_CITY"]].drop_duplicates())
 
+    # ✅ Correctly calculate total sales per salesperson in the selected month
     total_sales = sp_data["SALES_AMOUNT"].sum()
-    st.metric("Total Penjualan", f"Rp {total_sales:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    formatted_total = f"Rp {total_sales:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+    st.metric("Total Penjualan", formatted_total)
+
+    # ✅ Group by customer for chart (for that salesperson and month)
     chart_data = (
         sp_data.groupby("CUSTOMER_NAME")["SALES_AMOUNT"]
         .sum()
